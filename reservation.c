@@ -3,6 +3,7 @@
 
 #define MAX_RES 100
 #define MAX_SALLE 10
+typedef enum {PENDING, CONFIRMED, CANCELLED} Status;
 typedef struct {
     int id;
     char nom_client[50];
@@ -12,7 +13,7 @@ typedef struct {
     int heure_fin;    
     int nombre_personnes;
     float tarif;
-    char statut[20];
+    Status statut;
 } Reservation;
 
 typedef struct {
@@ -24,13 +25,11 @@ typedef struct {
 
 
 int Disponibilite(char *nomSalle, char *date, int hDebut, int hFin, Reservation reservations[], int n) {
-    // Fonction pour vérifier si une salle est disponible
     for(int i = 0; i < n; i++) {
-        // Vérifie si c'est la même salle et même date
         if(strcmp(reservations[i].salle, nomSalle) == 0 && strcmp(reservations[i].date, date) == 0) {
-            // Vérifie chevauchement des horaires
+
             if(hDebut < reservations[i].heure_fin && reservations[i].heure_debut < hFin) {
-                return 0; // NON disponible
+                return 0; 
             }
         }
     }
@@ -145,4 +144,5 @@ void genererFacture(Reservation r, int id) {
     fprintf(f, "Montant : %.2f DT\n", r.tarif);
     fclose(f);
 }
+
 
