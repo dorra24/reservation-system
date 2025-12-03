@@ -213,6 +213,115 @@ void sallesPopulaires(Reservation reservations[], int nb_reservations, salle sal
         }
     }
 }
+int main() {
+    Salle salles[MAX_SALLE] = {
+        {"SalleA", 10, 50.0, "Projecteur, Wifi"},
+        {"SalleB", 20, 80.0, "Tableau blanc, Wifi"},
+        {"SalleC", 5, 30.0, "Télévision"},
+        {"SalleD", 15, 60.0, "Projecteur, Tableau"},
+        {"SalleE", 12, 55.0, "Wifi, Vidéoconf"},
+        {"SalleF", 8, 40.0, "Tableau"},
+        {"SalleG", 25, 100.0, "Projecteur, Son"},
+        {"SalleH", 6, 35.0, "Télévision, Wifi"},
+        {"SalleI", 18, 70.0, "Projecteur, Tableau, Wifi"},
+        {"SalleJ", 30, 120.0, "Projecteur, Son, Vidéoconf"}
+    };
+    int nb_salles = 10;
+    Reservation reservations[MAX_RES];
+    int nb_res = 0;
+    int choix;
+    do {
+        printf("\n=== MENU RESERVATION DE SALLES ===\n");
+        printf("1. Ajouter une réservation\n");
+        printf("2. Afficher toutes les réservations\n");
+        printf("3. Générer facture\n");
+        printf("4. Chiffre d'affaires par salle\n");
+        printf("5. Nombre de réservations par mois\n");
+        printf("6. Salles les plus populaires\n");
+        printf("0. Quitter\n");
+        printf("Choix : ");
+        scanf("%d", &choix);
+
+        switch(choix) {
+            case 1: {
+                Reservation r;
+                r.id = nb_res + 1;
+                printf("Nom du client : ");
+                scanf("%s", r.nom_client);
+                printf("Salle : ");
+                scanf("%s", r.salle);
+                printf("Date (YYYY-MM-DD) : ");
+                scanf("%s", r.date);
+                printf("Heure début (0-23) : ");
+                scanf("%d", &r.heure_debut);
+                printf("Heure fin (0-23) : ");
+                scanf("%d", &r.heure_fin);
+                printf("Nombre de personnes : ");
+                scanf("%d", &r.nombre_personnes);
+                if(creerReservation(r, reservations, &nb_res, salles, nb_salles) == 0) {
+                    r.statut = CONFIRMED;
+                } else {
+                    printf("Erreur lors de la réservation.\n");
+                    r.statut = PENDING ;
+                }
+                break;
+            }
+            case 2: {
+                printf("\n=== Liste des réservations ===\n");
+                for(int i = 0; i < nb_res; i++) {
+                    printf("ID %d : %s, Salle %s, Date %s, %d-%d, %d pers, Tarif %.2f DT, Statut %d\n",
+                           reservations[i].id,
+                           reservations[i].nom_client,
+                           reservations[i].salle,
+                           reservations[i].date,
+                           reservations[i].heure_debut,
+                           reservations[i].heure_fin,
+                           reservations[i].nombre_personnes,
+                           reservations[i].tarif,
+                           reservations[i].statut);
+                }
+                break;
+            }
+            case 3: {
+                int id_facture;
+                printf("Entrez l'ID de la réservation pour générer la facture : ");
+                scanf("%d", &id_facture);
+                int trouve = 0;
+                for(int i = 0; i < nb_res; i++) {
+                    if(reservations[i].id == id_facture) {
+                        char nomFichier[50];
+                        sprintf(nomFichier, "facture_%d.txt", id_facture);
+                        genererFacture(reservations[i], nomFichier);
+                        printf("Facture générée : %s\n", nomFichier);
+                        trouve = 1;
+                        break;
+                    }
+                }
+                if(!trouve) printf("Réservation non trouvée.\n");
+                break;
+            }
+            case 4:
+                chiffredaffairesparsalle(reservations, nb_res);
+                break;
+            case 5:
+                reservationsParMois(reservations, nb_res);
+                break;
+            case 6:
+                sallesPopulaires(reservations, nb_res, salles, nb_salles);
+                break;
+            case 0:
+                printf("Au revoir !\n");
+                break;
+            default:
+                printf("Choix invalide.\n");
+        }
+    } while(choix != 0);
+    return 0;
+}
+
+
+
+
 
 
 
