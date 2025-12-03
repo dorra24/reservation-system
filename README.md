@@ -60,5 +60,5 @@ Affiche un message d’erreur si le fichier ne peut pas être créé.
     8)chiffredaffairesparsalle
 Cette fonction calcule et affiche le chiffre d’affaires total pour chaque salle en fonction des réservations effectuées.
 
-    9)sallesPopulaires
+    8)sallesPopulaires
 Cette fonction identifie et affiche les salles les plus populaires, c’est-à-dire celles avec le plus grand nombre de réservations.
