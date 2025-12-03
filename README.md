@@ -14,19 +14,20 @@ Fichiers principaux:
 main.c : fichier principal avec le menu et les appels de fonctions.
 
 Fonctions principales:
-        1)Fonction : Disponibilite
+
+    1)Fonction : Disponibilite
 Cette fonction vérifie si une salle donnée est disponible pour un créneau horaire spécifique à une date donnée.
 Valeur de retour :
 0 → La salle est disponible pour le créneau demandé
 1 → La salle n’est pas disponible (chevauchement avec une réservation existante)
 
-        2)Fonction : verifCapacite
+    2)Fonction : verifCapacite
 Cette fonction vérifie si une salle peut accueillir le nombre de personnes demandé pour une réservation.
 Valeur de retour :
 0 → La capacité de la salle est suffisante pour le nombre de personnes demandé
 1 → La capacité de la salle est insuffisante
 
-        3)creerReservation
+    3)creerReservation
 Cette fonction permet de créer une nouvelle réservation et de l’ajouter au tableau des réservations si :
    La salle peut accueillir le nombre de personnes demandé
    La salle est disponible pour le créneau horaire souhaité
