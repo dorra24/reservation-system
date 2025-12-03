@@ -1,328 +1,319 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define MAX_RES 100
+#define MAX_RES 200
 #define MAX_SALLE 10
+
 typedef enum {PENDING, CONFIRMED, CANCELLED} Status;
-typedef struct {
+
+typedef struct Client {
     int id;
-    char nom_client[50];
-    char salle[50];
-    char date[20];   
-    int heure_debut;  
-    int heure_fin;    
-    int nombre_personnes;
-    float tarif;
-    Status statut;
-} Reservation;
+    char nom[50];
+    char email[50];
+    char telephone[20];
+    int total_reservations;
+    float total_spent;
+    struct Client *suivant;
+} Client;
 
 typedef struct {
+    int id;
     char nom[50];
     int capacite;
     float tarif_horaire;
     char equipements[200];
 } Salle;
 
+typedef struct {
+    int id;
+    int client_id;
+    char client_name[50];
+    char client_email[50];
+    int salle_id;
+    char salle_name[50];
+    char date[20];
+    int heure_debut;
+    int heure_fin;
+    int nombre_personnes;
+    float tarif;
+    Status statut;
+} Reservation;
 
-int Disponibilite(char *nomSalle, char *date, int hDebut, int hFin, Reservation reservations[], int nb_salles) {
-    for(int i = 0; i < nb_salles; i++) {
-        if(strcmp(reservations[i].salle, nomSalle) == 0 && strcmp(reservations[i].date, date) == 0) {
+static Salle salles[MAX_SALLE];
+static Reservation reservations[MAX_RES];
+static int nb_res = 0;
+static Client *clients = NULL;
 
-            if(hDebut < reservations[i].heure_fin || reservations[i].heure_debut < hFin) {
-                return 1; 
-            }
+int saisieInt(const char *msg, int min, int max) {
+    int val;
+    while (1) {
+        printf("%s", msg);
+        if (scanf("%d", &val) != 1) {
+            while (getchar() != '\n');
+            continue;
         }
+        if (val >= min && val <= max) return val;
     }
-    return 0; 
 }
 
-int verifCapacite(int nombre_personnes, Salle salles[], int nb_salles, char *nomSalle) {
-    for(int i = 0; i < nb_salles; i++) {
-        if(strcmp(salles[i].nom, nomSalle) == 0) {
-            if(nombre_personnes <= salles[i].capacite) {
-                return 0; 
-            } else {
-                return 1; 
-            }
-        }
-    }
-    return 0; 
+void saisieString(const char *msg, char *out, int maxlen) {
+    printf("%s", msg);
+    scanf("%49s", out);
 }
 
-int creerReservation(Reservation r, Reservation reservations[], int *nb_res, Salle salles[], int nb_salles) {
-
-    if(!verifCapacite(r.nombre_personnes, salles, nb_salles, r.salle)) {
-        printf("Erreur : Salle insuffisante pour la capacité %s\n", r.salle);
-        return 1;
+int dateValide(const char *date) {
+    if (!date || strlen(date) != 10) return 0;
+    if (date[4] != '-' || date[7] != '-') return 0;
+    for (int i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) continue;
+        if (date[i] < '0' || date[i] > '9') return 0;
     }
-
-    if(!Disponibilite(r.salle, r.date, r.heure_debut, r.heure_fin, reservations, *nb_res)) {
-        printf("Erreur : La salle %s est déjà réservée à cet horaire\n", r.salle);
-        return 1;
-    }
-
-    float tarif_horaire = 0;
-    for(int i = 0; i < nb_salles; i++) {
-        if(strcmp(salles[i].nom, r.salle) == 0) {
-            tarif_horaire = salles[i].tarif_horaire;
-            break;
-        }
-    }
-    r.tarif = tarif_horaire * (r.heure_fin - r.heure_debut);
-
-    reservations[*nb_res] = r;
-    (*nb_res)++;
-
-    printf("Réservation créée avec succès ! Tarif = %.2f DT\n", r.tarif);
-    return 0;
-    }
-
-
-float calculerTarifTotal(Reservation *r, Salle salles[], int nb_salles) {
-    float tarif_horaire = 0;
-
-    
-    for(int i = 0; i < nb_salles; i++) {
-        if(strcmp(salles[i].nom, r->salle) == 0) {
-            tarif_horaire = salles[i].tarif_horaire;
-            break;
-        }
-    }
-
-    r->tarif = tarif_horaire * (r->heure_fin - r->heure_debut);
-    return r->tarif;
+    int y, m, d;
+    if (sscanf(date, "%d-%d-%d", &y, &m, &d) != 3) return 0;
+    if (m < 1 || m > 12) return 0;
+    if (d < 1 || d > 31) return 0;
+    return 1;
 }
 
-void sauvegardetarifs_salle(Salle salles[], int nb_salles, const char *nomFichier) {
-    FILE *f = fopen(nomFichier, "w"); 
-    if(!f) {
-        printf("Erreur : impossible d'écrire dans %s\n", nomFichier);
-        return;
+Client *trouverClientParNomEmail(const char *nom, const char *email) {
+    Client *c = clients;
+    while (c) {
+        if (strcmp(c->nom, nom) == 0 && strcmp(c->email, email) == 0) return c;
+        c = c->suivant;
     }
-
-    for(int i = 0; i < nb_salles; i++) {
-        fprintf(f, "%s %.2f\n", salles[i].nom, salles[i].tarif_horaire);
-    }
-
-    fclose(f); 
+    return NULL;
 }
-void sauvegardetarifs_reservation(Reservation reservations[], int nb_reservations, Salle salles[], int nb_salles, const char *nomFichier){
-    FILE *f = fopen(nomFichier, "w");
-    if(!f) {
-        printf("Erreur : impossible d'écrire dans %s\n", nomFichier);
-        return;
-    }
 
-    for(int i = 0; i < nb_reservations; i++) {
-        calculerTarifTotal(&reservations[i], salles, nb_salles);
-        fprintf(f, "%d %s %s %s %d %d %d %.2f\n",
-                reservations[i].id,
-                reservations[i].nom_client,
-                reservations[i].salle,
-                reservations[i].date,
-                reservations[i].heure_debut,
-                reservations[i].heure_fin,
-                reservations[i].nombre_personnes,
-                reservations[i].tarif);
+Client *trouverClientParId(int id) {
+    Client *c = clients;
+    while (c) {
+        if (c->id == id) return c;
+        c = c->suivant;
     }
+    return NULL;
+}
 
+int prochainIdClient() {
+    int max = 0;
+    Client *c = clients;
+    while (c) {
+        if (c->id > max) max = c->id;
+        c = c->suivant;
+    }
+    return max + 1;
+}
+
+Client *ajouterClientSiInexistant_wrapper(const char *nom, const char *email) {
+    Client *ex = trouverClientParNomEmail(nom, email);
+    if (ex) return ex;
+    char tel[20];
+    printf("Téléphone pour le nouveau client : ");
+    scanf("%19s", tel);
+    Client *n = malloc(sizeof(Client));
+    if (!n) return NULL;
+    n->id = prochainIdClient();
+    strncpy(n->nom, nom, sizeof(n->nom)-1); n->nom[sizeof(n->nom)-1]='\0';
+    strncpy(n->email, email, sizeof(n->email)-1); n->email[sizeof(n->email)-1]='\0';
+    strncpy(n->telephone, tel, sizeof(n->telephone)-1); n->telephone[sizeof(n->telephone)-1]='\0';
+    n->total_reservations = 0; n->total_spent = 0.0f; n->suivant = clients; clients = n;
+    return n;
+}
+
+float prixAvecFidelite(Client *c, float prix_base) {
+    if (!c) return prix_base;
+    float red = 0.0f;
+    if (c->total_reservations > 10) red = 0.20f;
+    else if (c->total_reservations > 5) red = 0.10f;
+    return prix_base * (1.0f - red);
+}
+
+void initSalles() {
+    strncpy(salles[0].nom, "SalleA", sizeof(salles[0].nom)-1); salles[0].capacite = 10; salles[0].tarif_horaire = 50.0f;
+    strncpy(salles[1].nom, "SalleB", sizeof(salles[1].nom)-1); salles[1].capacite = 20; salles[1].tarif_horaire = 80.0f;
+    strncpy(salles[2].nom, "SalleC", sizeof(salles[2].nom)-1); salles[2].capacite = 5;  salles[2].tarif_horaire = 30.0f;
+    strncpy(salles[3].nom, "SalleD", sizeof(salles[3].nom)-1); salles[3].capacite = 15; salles[3].tarif_horaire = 60.0f;
+    strncpy(salles[4].nom, "SalleE", sizeof(salles[4].nom)-1); salles[4].capacite = 12; salles[4].tarif_horaire = 55.0f;
+    strncpy(salles[5].nom, "SalleF", sizeof(salles[5].nom)-1); salles[5].capacite = 8;  salles[5].tarif_horaire = 40.0f;
+    strncpy(salles[6].nom, "SalleG", sizeof(salles[6].nom)-1); salles[6].capacite = 25; salles[6].tarif_horaire = 100.0f;
+    strncpy(salles[7].nom, "SalleH", sizeof(salles[7].nom)-1); salles[7].capacite = 6;  salles[7].tarif_horaire = 35.0f;
+    strncpy(salles[8].nom, "SalleI", sizeof(salles[8].nom)-1); salles[8].capacite = 18; salles[8].tarif_horaire = 70.0f;
+    strncpy(salles[9].nom, "SalleJ", sizeof(salles[9].nom)-1); salles[9].capacite = 30; salles[9].tarif_horaire = 120.0f;
+    for (int i=0;i<MAX_SALLE;i++) salles[i].id = i+1;
+}
+
+int DisponibiliteSalle(int salle_id, const char *date, int hd, int hf) {
+    for (int i=0;i<nb_res;i++) {
+        if (reservations[i].salle_id == salle_id && strcmp(reservations[i].date, date) == 0) {
+            if (!(hf <= reservations[i].heure_debut || hd >= reservations[i].heure_fin))
+                return 0;
+        }
+    }
+    return 1;
+}
+
+float calculPrixBase(int salle_id, int hd, int hf) {
+    if (salle_id < 1 || salle_id > MAX_SALLE) return 0.0f;
+    float taux = salles[salle_id-1].tarif_horaire;
+    int duree = hf - hd;
+    if (duree < 0) duree = 0;
+    return taux * duree;
+}
+
+void sauvegarderClients() {
+    FILE *f = fopen("clients.txt","w");
+    if (!f) return;
+    Client *c = clients;
+    while (c) {
+        fprintf(f,"%d %s %s %s %d %.2f\n",c->id,c->nom,c->email,c->telephone,c->total_reservations,c->total_spent);
+        c = c->suivant;
+    }
     fclose(f);
 }
 
-void genererFacture(Reservation r, int id) {
-    FILE *f = fopen(nomFichier, "w");
-    if(!f) {
-        printf("Erreur : impossible de créer %s\n", nomFichier);
-        return;
+void chargerClients() {
+    FILE *f = fopen("clients.txt","r");
+    if (!f) return;
+    while (!feof(f)) {
+        Client *n = malloc(sizeof(Client));
+        if (!n) break;
+        if (fscanf(f,"%d %49s %49s %19s %d %f",&n->id,n->nom,n->email,n->telephone,&n->total_reservations,&n->total_spent)!=6) { free(n); break; }
+        n->suivant = clients; clients = n;
     }
-    int duree = r.heure_fin - r.heure_debut;
-    fprintf(f, "Facture ID : %d\n", r.id);
-    fprintf(f, "Client : %s\n", r.nom_client);
-    fprintf(f, "Salle : %s\n", r.salle);
-    fprintf(f, "Date : %s\n", r.date);
-    fprintf(f, "Durée : %d heures\n", duree);
-    fprintf(f, "Montant : %.2f DT\n", r.tarif);
     fclose(f);
 }
 
-void chiffredaffairesparsalle(Reservation reservations[],int nb_reservations){
-    printf("Chiffre d'affaire par salle");
-    
-    float ca[10]={0};    //tableau des chiffres daffaires
-    char salles[10][50];  //les noms de salles ayant une reservation
-    int nb_salles_reserv =0; //nbre de salles ayant une reservation
+void sauvegarderReservations() {
+    FILE *f = fopen("reservations.txt","w");
+    if (!f) return;
+    for (int i=0;i<nb_res;i++)
+        fprintf(f,"%d %d %s %s %d %s %s %d %d %d %.2f %d\n",
+                reservations[i].id,reservations[i].client_id,reservations[i].client_name,reservations[i].client_email,
+                reservations[i].salle_id,reservations[i].salle_name,reservations[i].date,reservations[i].heure_debut,
+                reservations[i].heure_fin,reservations[i].nombre_personnes,reservations[i].tarif,reservations[i].statut);
+    fclose(f);
+}
 
-    for(int i = 0; i < nb_reservations; i++){
-        int exist = -1;
-
-        for(int j = 0; j < nb_salles_reserv; j++) {
-            if(strcmp(salles[j], reservations[i].salle) == 0) {
-                exist = j;
-                break;
-            }
-        }
-        if(exist == -1){
-            strcpy(salles[nb_salles_reserv], reservations[i].salle);
-            exist = nb_salles_reserv;
-            nb_salles_reserv++;
-        }
-        ca[exist]+=reservations[i].tarif;
+void chargerReservations() {
+    FILE *f = fopen("reservations.txt","r");
+    if (!f) return;
+    while (!feof(f) && nb_res<MAX_RES) {
+        Reservation r;
+        if (fscanf(f,"%d %d %49s %49s %d %49s %19s %d %d %d %f %d",
+                   &r.id,&r.client_id,r.client_name,r.client_email,&r.salle_id,r.salle_name,r.date,&r.heure_debut,
+                   &r.heure_fin,&r.nombre_personnes,&r.tarif,(int*)&r.statut)!=12) break;
+        reservations[nb_res++] = r;
     }
-    for(int i = 0; i < nb_salles_reserv; i++) {
-        printf("Salle %s : %.2f DT\n", salles[i], ca[i]);
+    fclose(f);
+}
+
+int effectuerReservationInteractive() {
+    if (nb_res >= MAX_RES) return 1;
+    char nom[50], email[50];
+    saisieString("Nom du client : ", nom, sizeof(nom));
+    saisieString("Email du client : ", email, sizeof(email));
+    Client *c = trouverClientParNomEmail(nom, email);
+    if (!c) c = ajouterClientSiInexistant_wrapper(nom,email);
+    char date[20];
+    do { saisieString("Date (YYYY-MM-DD) : ", date, sizeof(date)); } while(!dateValide(date));
+    int hd = saisieInt("Heure début (0-23) : ",0,23);
+    int hf = saisieInt("Heure fin (1-24) : ",hd+1,24);
+    int nb_pers,salles_dispo[MAX_SALLE],nb_disp;
+    while(1) {
+        nb_pers = saisieInt("Nombre de personnes : ",1,1000); nb_disp=0;
+        for(int i=0;i<MAX_SALLE;i++)
+            if(salles[i].capacite>=nb_pers && DisponibiliteSalle(salles[i].id,date,hd,hf))
+                salles_dispo[nb_disp++]=i;
+        if(nb_disp==0) { if(!saisieInt("Aucune salle disponible. Réessayer? (1=oui 0=non): ",0,1)) return 1; continue;}
+        for(int i=0;i<nb_disp;i++) printf("%d) %s (cap %d, %.2f/h)\n",i+1,salles[salles_dispo[i]].nom,salles[salles_dispo[i]].capacite,salles[salles_dispo[i]].tarif_horaire);
+        int choix = saisieInt("Choisissez la salle : ",1,nb_disp);
+        int idxSalle = salles_dispo[choix-1];
+        Reservation r;
+        r.id = nb_res+1;
+        r.client_id = c->id;
+        strncpy(r.client_name,c->nom,sizeof(r.client_name)-1); r.client_name[sizeof(r.client_name)-1]='\0';
+        strncpy(r.client_email,c->email,sizeof(r.client_email)-1); r.client_email[sizeof(r.client_email)-1]='\0';
+        r.salle_id = salles[idxSalle].id;
+        strncpy(r.salle_name,salles[idxSalle].nom,sizeof(r.salle_name)-1); r.salle_name[sizeof(r.salle_name)-1]='\0';
+        strncpy(r.date,date,sizeof(r.date)-1); r.date[sizeof(r.date)-1]='\0';
+        r.heure_debut=hd; r.heure_fin=hf;
+        r.nombre_personnes=nb_pers; r.statut=CONFIRMED;
+        r.tarif=prixAvecFidelite(c,calculPrixBase(r.salle_id,hd,hf));
+        reservations[nb_res++]=r;
+        c->total_reservations++; c->total_spent+=r.tarif;
+        sauvegarderClients(); sauvegarderReservations();
+        return 0;
     }
 }
-void reservationsParMois(Reservation reservations[], int nb_reservations) {
-    int mois_count[12] = {0};  // compteur pour chaque mois (0 = janvier, 11 = décembre)
 
-    for(int i = 0; i < nb_reservations; i++) {
-        int mois;
-        sscanf(reservations[i].date, "%*d-%d-%*d", &mois);
-        mois_count[mois - 1]++;
-    }
+void genererFactureParId(int id) {
+    if(id<1 || id>nb_res) return;
+    Reservation *r = &reservations[id-1];
+    char nomFichier[64]; snprintf(nomFichier,sizeof(nomFichier),"facture_%d.txt",r->id);
+    FILE *f = fopen(nomFichier,"w");
+    if(!f) return;
+    fprintf(f,"FACTURE ID: %d\nClient: %s (%s)\nSalle: %s\nDate: %s\nHeure: %d-%d\nNombre personnes: %d\nMontant: %.2f\n",
+            r->id,r->client_name,r->client_email,r->salle_name,r->date,r->heure_debut,r->heure_fin,r->nombre_personnes,r->tarif);
+    fclose(f);
+}
 
-    printf("\n=== Nombre de réservations par mois ===\n");
-    for(int i = 0; i < 12; i++) {
-        printf("Mois %02d : %d réservation(s)\n", i + 1, mois_count[i]);
+void listerReservations() {
+    for(int i=0;i<nb_res;i++) {
+        Reservation *r=&reservations[i];
+        printf("ID %d | Client: %s | Salle: %s | Date: %s | %d-%d | %d pers | %.2f | Statut %d\n",
+               r->id,r->client_name,r->salle_name,r->date,r->heure_debut,r->heure_fin,r->nombre_personnes,r->tarif,r->statut);
     }
 }
-void sallesPopulaires(Reservation reservations[], int nb_reservations, salle salles[] , int nb_salles) {
 
-    int compte[10] = {0};
+void chiffreAffairesParSalle() {
+    float ca[MAX_SALLE]={0};
+    for(int i=0;i<nb_res;i++) ca[reservations[i].salle_id-1]+=reservations[i].tarif;
+    for(int i=0;i<MAX_SALLE;i++) printf("%s : %.2f\n",salles[i].nom,ca[i]);
+}
 
-    for(int i = 0; i < nb_reservations; i++) {
-        int index = -1;
-        for(int j = 0; j < nb_salles; j++) {
-            if(strcmp(salles[j], reservations[i].salle) == 0) {
-                index = j;
-                break;
-            }
-        }
-        compte[index]++;
+void reservationsParMois_affiche() {
+    int mois_count[12]={0};
+    for(int i=0;i<nb_res;i++) {
+        int y,m,d;
+        if(sscanf(reservations[i].date,"%d-%d-%d",&y,&m,&d)==3 && m>=1 && m<=12) mois_count[m-1]++;
     }
- int max_res = 0;
-    for(int i = 0; i < nb_salles; i++) {
-        if(compte[i] > max_res) {
-            max_res = compte[i];
-        }
-    }
-    printf("\n=== Salle(s) la/les plus populaire(s) ===\n");
-    for(int i = 0; i < nb_salles; i++) {
-        if(compte[i] == max_res) {
-            printf("Salle %s : %d réservation(s)\n", salles[i], compte[i]);
-        }
+    for(int i=0;i<12;i++) printf("Mois %02d : %d\n",i+1,mois_count[i]);
+}
+
+void sallesPopulaires_affiche() {
+    int compte[MAX_SALLE]={0};
+    for(int i=0;i<nb_res;i++) compte[reservations[i].salle_id-1]++;
+    int maxi=0; for(int i=0;i<MAX_SALLE;i++) if(compte[i]>maxi) maxi=compte[i];
+    for(int i=0;i<MAX_SALLE;i++) if(compte[i]==maxi) printf("%s : %d réservations\n",salles[i].nom,compte[i]);
+}
+
+void listerClients() {
+    Client *c=clients;
+    while(c) {
+        printf("ID %d | %s | %s | tel: %s | réservations: %d | dépensé: %.2f\n",
+               c->id,c->nom,c->email,c->telephone,c->total_reservations,c->total_spent);
+        c=c->suivant;
     }
 }
+
 int main() {
-    Salle salles[MAX_SALLE] = {
-        {"SalleA", 10, 50.0, "Projecteur, Wifi"},
-        {"SalleB", 20, 80.0, "Tableau blanc, Wifi"},
-        {"SalleC", 5, 30.0, "Télévision"},
-        {"SalleD", 15, 60.0, "Projecteur, Tableau"},
-        {"SalleE", 12, 55.0, "Wifi, Vidéoconf"},
-        {"SalleF", 8, 40.0, "Tableau"},
-        {"SalleG", 25, 100.0, "Projecteur, Son"},
-        {"SalleH", 6, 35.0, "Télévision, Wifi"},
-        {"SalleI", 18, 70.0, "Projecteur, Tableau, Wifi"},
-        {"SalleJ", 30, 120.0, "Projecteur, Son, Vidéoconf"}
-    };
-    int nb_salles = 10;
-    Reservation reservations[MAX_RES];
-    int nb_res = 0;
+    initSalles();
+    chargerClients();
+    chargerReservations();
     int choix;
     do {
-        printf("\n=== MENU RESERVATION DE SALLES ===\n");
-        printf("1. Ajouter une réservation\n");
-        printf("2. Afficher toutes les réservations\n");
-        printf("3. Générer facture\n");
-        printf("4. Chiffre d'affaires par salle\n");
-        printf("5. Nombre de réservations par mois\n");
-        printf("6. Salles les plus populaires\n");
-        printf("0. Quitter\n");
-        printf("Choix : ");
-        scanf("%d", &choix);
-
-        switch(choix) {
-            case 1: {
-                Reservation r;
-                r.id = nb_res + 1;
-                printf("Nom du client : ");
-                scanf("%s", r.nom_client);
-                printf("Salle : ");
-                scanf("%s", r.salle);
-                printf("Date (YYYY-MM-DD) : ");
-                scanf("%s", r.date);
-                printf("Heure début (0-23) : ");
-                scanf("%d", &r.heure_debut);
-                printf("Heure fin (0-23) : ");
-                scanf("%d", &r.heure_fin);
-                printf("Nombre de personnes : ");
-                scanf("%d", &r.nombre_personnes);
-                if(creerReservation(r, reservations, &nb_res, salles, nb_salles) == 0) {
-                    r.statut = CONFIRMED;
-                } else {
-                    printf("Erreur lors de la réservation.\n");
-                    r.statut = PENDING ;
-                }
-                break;
-            }
-            case 2: {
-                printf("\n=== Liste des réservations ===\n");
-                for(int i = 0; i < nb_res; i++) {
-                    printf("ID %d : %s, Salle %s, Date %s, %d-%d, %d pers, Tarif %.2f DT, Statut %d\n",
-                           reservations[i].id,
-                           reservations[i].nom_client,
-                           reservations[i].salle,
-                           reservations[i].date,
-                           reservations[i].heure_debut,
-                           reservations[i].heure_fin,
-                           reservations[i].nombre_personnes,
-                           reservations[i].tarif,
-                           reservations[i].statut);
-                }
-                break;
-            }
-            case 3: {
-                int id_facture;
-                printf("Entrez l'ID de la réservation pour générer la facture : ");
-                scanf("%d", &id_facture);
-                int trouve = 0;
-                for(int i = 0; i < nb_res; i++) {
-                    if(reservations[i].id == id_facture) {
-                        char nomFichier[50];
-                        sprintf(nomFichier, "facture_%d.txt", id_facture);
-                        genererFacture(reservations[i], nomFichier);
-                        printf("Facture générée : %s\n", nomFichier);
-                        trouve = 1;
-                        break;
-                    }
-                }
-                if(!trouve) printf("Réservation non trouvée.\n");
-                break;
-            }
-            case 4:
-                chiffredaffairesparsalle(reservations, nb_res);
-                break;
-            case 5:
-                reservationsParMois(reservations, nb_res);
-                break;
-            case 6:
-                sallesPopulaires(reservations, nb_res, salles, nb_salles);
-                break;
-            case 0:
-                printf("Au revoir !\n");
-                break;
-            default:
-                printf("Choix invalide.\n");
+        printf("\n--- Menu ---\n1) Nouvelle réservation\n2) Lister réservations\n3) Générer facture (par ID)\n4) Chiffre d'affaires par salle\n5) Réservations par mois\n6) Salles populaires\n7) Lister clients\n0) Quitter\n");
+        choix = saisieInt("Choix : ",0,7);
+        switch(choix){
+            case 1: effectuerReservationInteractive(); break;
+            case 2: listerReservations(); break;
+            case 3: if(nb_res) genererFactureParId(saisieInt("ID réservation : ",1,nb_res)); break;
+            case 4: chiffreAffairesParSalle(); break;
+            case 5: reservationsParMois_affiche(); break;
+            case 6: sallesPopulaires_affiche(); break;
+            case 7: listerClients(); break;
         }
-    } while(choix != 0);
+    } while(choix!=0);
+    while(clients) { Client *tmp=clients->suivant; free(clients); clients=tmp; }
     return 0;
 }
-
-
-
-
-
-
-
-
