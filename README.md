@@ -1,64 +1,67 @@
-# reservation-system fichiers principaux
+# reservation
 Software in C for managing room reservations
-Ce projet permet de gérer les réservations de salles pour une entreprise ou un espace de coworking. Il fournit des fonctionnalités complètes telles que :
-    Création et gestion des réservations
-    Vérification de la capacité et de la disponibilité des salles
-    Calcul automatique des tarifs
-    Génération de factures pour les clients
-    Statistiques sur les réservations et le chiffre d’affaires
-    Identification des salles les plus populaires
+# Gestion de Réservations de Salles
 
-Le projet est développé en C et utilise des structures (Reservation et Salle) pour gérer les informations.
+Ce projet est une application en C permettant de gérer des **salles**, des **clients** et des **réservations** ainsi qu’une liste d’attente via une pile et une file.
 
-Fichiers principaux: 
-main.c : fichier principal avec le menu et les appels de fonctions.
+## Structures principales
+- `Salle` : nom, capacité, tarif horaire, équipements.
+- `Reservation` : id, client, salle, date, horaires, nombre de personnes, tarif, statut.
+- `Client` : id, nom, email, téléphone.
+- `Pile` et `File` : pour empiler/dépiler et enfiler/défiler les réservations.
 
-Fonctions principales:
+- ## ## Structure du projet
+├── main.c
+├── fonction.h
+├── fonctionss.c
+└── README.md
 
-    1)Fonction : Disponibilite
-Cette fonction vérifie si une salle donnée est disponible pour un créneau horaire spécifique à une date donnée.
-Valeur de retour :
-0 → La salle est disponible pour le créneau demandé
-1 → La salle n’est pas disponible (chevauchement avec une réservation existante)
+- ## ## Fonctionnalités principales
 
-    2)Fonction : verifCapacite
-Cette fonction vérifie si une salle peut accueillir le nombre de personnes demandé pour une réservation.
-Valeur de retour :
-0 → La capacité de la salle est suffisante pour le nombre de personnes demandé
-1 → La capacité de la salle est insuffisante
+### ✔ Disponibilité
+Vérifie automatiquement si une salle est libre à la date et aux heures demandées, afin d’éviter les conflits d’horaires.
 
-    3)creerReservation
-Cette fonction permet de créer une nouvelle réservation et de l’ajouter au tableau des réservations si :
-   La salle peut accueillir le nombre de personnes demandé
-   La salle est disponible pour le créneau horaire souhaité
-Valeur de retour :
-0 → La réservation a été créée avec succès
-1 → La réservation n’a pas pu être créée (salle non disponible ou capacité insuffisante)
+### ✔ Capacité
+Compare le nombre de personnes de la réservation avec la capacité maximale de la salle.
 
-    4)calculerTarifTotal
-Cette fonction calcule le tarif total d’une réservation en fonction de la salle choisie et de la durée de la réservation.
-Valeur de retour :
-Retourne le tarif total calculé pour la réservation (float).
+### ✔ Création de réservation
+Lorsqu'une réservation est créée, plusieurs contrôles sont effectués :
+- validation des heures (heure fin > heure début)
+- vérification de la disponibilité
+- vérification de la capacité
+- contrôle de la date
+- calcul automatique du tarif
+- en cas d’erreur → stockage dans la **pile**
+- en cas de réservation valide mais impossible → ajout à la **file d’attente**
 
-    5)sauvegardetarifs_salle
-Cette fonction permet de sauvegarder les tarifs horaires de toutes les salles dans un fichier texte.
-Valeur de retour :
-Aucun (fonction void).
-En cas d’erreur d’ouverture du fichier, affiche un message d’erreur.
+### ✔ Calcul du tarif total
+Le tarif est automatiquement calculé :  
+**tarif horaire × durée de réservation**
 
-    6)sauvegardetarifs_reservation
-Cette fonction permet de sauvegarder toutes les réservations dans un fichier texte, avec le tarif calculé pour chacune.
-Valeur de retour :
-Aucun (void).
-En cas d’erreur d’ouverture du fichier, affiche un message d’erreur.
+### ✔ Facture
+Génération d’un fichier `.txt` contenant :
+- les informations du client  
+- la salle réservée  
+- la date et l’horaire  
+- le tarif total
 
-    7)genererFacture
-Cette fonction génère une facture individuelle pour une réservation sous forme de fichier texte.
-Valeur de retour :
-Aucun (void).
-Affiche un message d’erreur si le fichier ne peut pas être créé.
-    8)chiffredaffairesparsalle
-Cette fonction calcule et affiche le chiffre d’affaires total pour chaque salle en fonction des réservations effectuées.
+### ✔ Statistiques
+Plusieurs statistiques sont générées automatiquement :
+- chiffre d’affaires par salle
+- nombre de réservations par mois
+- salle la plus populaire (max de réservations)
 
-    8)sallesPopulaires
-Cette fonction identifie et affiche les salles les plus populaires, c’est-à-dire celles avec le plus grand nombre de réservations.
+### ✔ Recherche client
+Affiche toutes les réservations faites par un client donné.
+
+### ✔ Remise
+Une réduction de **10%** est appliquée automatiquement si un client dépasse **5 réservations**.
+### ✔ liste d’attente (File)
+La file (File) stocke les réservations valides mais non réalisables immédiatement
+
+
+## Auteurs
+Projet développé par **Dorra Zouari**, **Rania Hafsa** **Gatri Yomn**.
+
+**Langage utilisé :** `C`
+
